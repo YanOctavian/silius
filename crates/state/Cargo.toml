@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.72"
+smt-rocksdb-store = { git = "https://github.com/quake/smt-rocksdb-store.git", branch= "master" }
+
+[dev-dependencies]
+sparse-merkle-tree = "0.6.1"
+blake2b-rs = "0.2.0"
