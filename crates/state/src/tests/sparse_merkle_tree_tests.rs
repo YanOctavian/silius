@@ -119,6 +119,7 @@ fn main() {
             hasher.finalize(&mut buf);
             buf.into()
         };
+        // The value in the Merkle tree directly stores the original data.
         let value = Word(word.to_string());
         // insert key value into tree
         tree.update(key, value).expect("update");

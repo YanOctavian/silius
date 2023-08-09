@@ -1,11 +1,15 @@
-// todo
-// pub trait StataTrait<K, V> {
-//     /// update all date
-//     // fn try_update_all(&mut self, Vec<(K, V)>) ->
-//     /// clear all data
-//     // fn try_clear(&mut self) -> ;
-//     /// get merkle proof
-//     // fn try_get_merkle_proof(&self, Vec<K>) -> Vec<u8>;
-//     /// Get the future root without changing the state
-//     // try_get_future_proof(&self, proof: Vec<u8>, Vec<(K, V))
-// }
+use anyhow::Result;
+use sparse_merkle_tree::H256;
+
+
+/// Several basic implementations of off-chain state.
+pub trait StataTrait<K, V> {
+    /// update all data, and return the new root.
+    fn try_update_all(&mut self, future_k_v: Vec<(K, V)>) -> Result<Vec<H256>>;
+    /// clear all data.
+    fn try_clear(&mut self) -> Result<()>;
+    /// get current merkle proof.
+    fn try_get_merkle_proof(&self, keys: Vec<K>) -> Result<Vec<u8>>;
+    /// ro get the future root without changing the state.
+    fn try_get_future_root(&self, old_proof: Vec<u8>, future_k_v: Vec<(K, V)>) -> Result<H256>;
+}

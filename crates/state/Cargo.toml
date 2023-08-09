@@ -7,8 +7,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.72"
-smt-rocksdb-store = { git = "https://github.com/quake/smt-rocksdb-store.git", branch= "master" }
-
-[dev-dependencies]
 sparse-merkle-tree = "0.6.1"
 blake2b-rs = "0.2.0"
+smt-rocksdb-store = { git = "https://github.com/quake/smt-rocksdb-store.git", branch= "master" }
+ethers.workspace = true
+rocksdb = { package = "ckb-rocksdb", version = "0.19", default-features = false, features = ["snappy", "march-native"] }
+
+[dev-dependencies]

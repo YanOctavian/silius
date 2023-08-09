@@ -17,4 +17,86 @@
 
 mod tests;
 mod traits;
-use smt_rocksdb_store;
+
+use std::hash::Hasher;
+use smt_rocksdb_store::default_store::DefaultStoreMultiTree;
+use sparse_merkle_tree::{H256, SparseMerkleTree, traits::Value};
+use sparse_merkle_tree::blake2b::Blake2bHasher;
+use ethers::types::{Address, U256};
+use blake2b_rs::{Blake2b, Blake2bBuilder};
+
+
+// use traits::StataTrait;
+// //
+// // #[derive(Debug, Clone)]
+// // pub struct SmtValue {
+// //     pub address: Address,
+// //     pub nonce: u64,
+// //     pub deposit: U256,
+// // }
+// //
+// impl Value for SmtValue {
+//     fn to_h256(&self) -> H256 {
+//         let mut hasher = new_blake2b();
+//         let mut buf = [0u8; 32];
+//         hasher.update(&self.address.as_bytes());
+//         hasher.update(&self.nonce.to_le_bytes());
+//         hasher.update(&self.deposit.to_le_bytes());
+//         hasher.finalize(&mut buf);
+//         buf.into()
+//     }
+//
+//     fn zero() -> Self {
+//         Default::default()
+//     }
+// }
+
+//
+//
+// type DefaultStoreMultiSMT<'a, T, W> =
+//     SparseMerkleTree<Blake2bHasher, SmtValue, DefaultStoreMultiTree<'a, T, W>>;
+//
+//
+// #[derive(Debug, Clone)]
+// pub struct State<'a, S, H> {
+//     prefix: &'a str,
+//     db: S,
+//     hasher: H,
+// }
+//
+// impl<S: Default, H: Hasher + Default> State<'static, S, H> {
+//     pub fn new(prefix: &'static str) -> Self {
+//         Self {
+//             prefix,
+//             store: S::default(),
+//             hasher: H::default(),
+//         }
+//     }
+// }
+//
+//
+// fn new_blake2b() -> Blake2b {
+//     Blake2bBuilder::new(32).personal(b"SMT").build()
+// }
+//
+//
+// // impl StataTrait<H256, H256> for State<S, H> {
+// //     fn try_update_all(&mut self, future_k_v: Vec<(H256, H256)>) -> anyhow::Result<Vec<H256>> {
+// //         todo!()
+// //     }
+// //
+// //     fn try_clear(&mut self) -> anyhow::Result<()> {
+// //         todo!()
+// //     }
+// //
+// //     fn try_get_merkle_proof(&self, keys: Vec<H256>) -> anyhow::Result<Vec<u8>> {
+// //         todo!()
+// //     }
+// //
+// //     fn try_get_future_root(&self, old_proof: Vec<u8>, future_k_v: Vec<(H256, H256)>) -> anyhow::Result<H256> {
+// //         todo!()
+// //     }
+// // }
+//
+//
+//
