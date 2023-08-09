@@ -4853,6 +4853,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "silius_state"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "blake2b-rs",
+ "byte-slice-cast",
+ "ckb-rocksdb",
+ "ethers",
+ "serde",
+ "smt-rocksdb-store",
+ "sparse-merkle-tree",
+ "tracing",
+]
+
+[[package]]
 name = "siphasher"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5004,18 +5020,6 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
-
-[[package]]
-name = "state"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake2b-rs",
- "ckb-rocksdb",
- "ethers",
- "smt-rocksdb-store",
- "sparse-merkle-tree",
-]
 
 [[package]]
 name = "static_assertions"

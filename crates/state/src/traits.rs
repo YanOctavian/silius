@@ -1,11 +1,10 @@
 use anyhow::Result;
 use sparse_merkle_tree::H256;
 
-
 /// Several basic implementations of off-chain state.
 pub trait StataTrait<K, V> {
     /// update all data, and return the new root.
-    fn try_update_all(&mut self, future_k_v: Vec<(K, V)>) -> Result<Vec<H256>>;
+    fn try_update_all(&mut self, future_k_v: Vec<(K, V)>) -> Result<H256>;
     /// clear all data.
     fn try_clear(&mut self) -> Result<()>;
     /// get current merkle proof.
