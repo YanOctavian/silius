@@ -16,6 +16,11 @@
 //!
 
 #![allow(dead_code)]
+/// todo list
+/// 1. test for all functions.
+/// 2. hash algorithm can be replaced.
+/// 3. bundler calls state.
+/// 4. Bundler synchronizes data for state.
 
 mod tests;
 mod traits;
