@@ -37,6 +37,7 @@ use serde::{Deserialize, Serialize};
 use smt_rocksdb_store::default_store::DefaultStoreMultiTree;
 use sparse_merkle_tree::{blake2b::Blake2bHasher, traits::Hasher};
 use sparse_merkle_tree::{traits::Value, CompiledMerkleProof, SparseMerkleTree, H256};
+use std::marker::PhantomData;
 use thiserror::Error;
 // local
 use traits::StataTrait;
@@ -63,10 +64,16 @@ pub enum Error {
 }
 
 /// The value stored in the sparse Merkle tree.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SmtValue {
     data: Data,
     serialized_data: Vec<u8>,
+}
+
+impl Default for SmtValue {
+    fn default() -> Self {
+        SmtValue::new(Data::default()).unwrap()
+    }
 }
 
 impl SmtValue {
@@ -87,20 +94,25 @@ impl SmtValue {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Data {
-    address: Address,
-    nonce: u64,
-    deposit: U256,
+    pub address: Address,
+    pub nonce: u64,
+    pub deposit: U256,
 }
 
 impl Value for SmtValue {
     fn to_h256(&self) -> H256 {
-        let mut hasher = new_blake2b();
-        let mut buf = [0u8; 32];
-        hasher.update(self.get_serialized_data());
-        hasher.finalize(&mut buf);
-        buf.into()
+        match self {
+            a if a == &Default::default() => H256::zero(),
+            _ => {
+                let mut hasher = new_blake2b();
+                let mut buf = [0u8; 32];
+                hasher.update(self.get_serialized_data());
+                hasher.finalize(&mut buf);
+                buf.into()
+            }
+        }
     }
 
     fn zero() -> Self {
@@ -130,13 +142,17 @@ impl AsRef<[u8]> for SmtValue {
 pub struct State<'a, H: Hasher + Default> {
     prefix: &'a [u8],
     db: OptimisticTransactionDB,
-    hasher: H,
+    _hasher: PhantomData<H>,
 }
 
 impl<'a, H: Hasher + Default> State<'a, H> {
-    pub fn new(prefix: &'a [u8], db: OptimisticTransactionDB, hasher: H) -> Self {
+    pub fn new(prefix: &'a [u8], db: OptimisticTransactionDB) -> Self {
         // todo Check if it has been created
-        State { prefix, db, hasher }
+        State {
+            prefix,
+            db,
+            _hasher: PhantomData,
+        }
     }
 }
 
@@ -161,6 +177,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         Ok(*rocksdb_store_smt.root())
     }
 
+    /// fixme: this function is not used
     fn try_clear(&mut self) -> Result<()> {
         let snapshot = self.db.snapshot();
         let prefix = self.prefix;
@@ -188,9 +205,15 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
             prefix.as_byte_slice(),
             &tx,
         ))?;
-
+        #[cfg(test)]
+        println!("root: {:?}", rocksdb_store_smt.root());
+        #[cfg(test)]
+        println!("clear kvs: {:?}", kvs);
         rocksdb_store_smt.update_all(kvs)?;
         tx.commit()?;
+        #[cfg(test)]
+        println!("root1: {:?}", self.try_get_root().unwrap());
+
         assert_eq!(rocksdb_store_smt.root(), &H256::zero());
         Ok(())
     }

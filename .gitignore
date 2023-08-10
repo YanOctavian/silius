@@ -2,3 +2,4 @@
 .local
 .vscode
 .idea
+/crates/state/db*

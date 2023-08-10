@@ -4856,7 +4856,6 @@ dependencies = [
 name = "silius_state"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bincode",
  "blake2b-rs",
  "byte-slice-cast",
@@ -4865,6 +4864,7 @@ dependencies = [
  "serde",
  "smt-rocksdb-store",
  "sparse-merkle-tree",
+ "thiserror",
  "tracing",
 ]
 
