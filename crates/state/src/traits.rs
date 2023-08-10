@@ -1,4 +1,4 @@
-use anyhow::Result;
+use super::Result;
 use sparse_merkle_tree::H256;
 
 /// Several basic implementations of off-chain state.

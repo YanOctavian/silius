@@ -21,8 +21,6 @@
 // 2. hash algorithm can be replaced.
 // 3. bundler calls state.
 // 4. Bundler synchronizes data for state.
-// 8. `thiserr` instead of `anyhow`.
-
 
 mod tests;
 mod traits;
@@ -32,13 +30,14 @@ use bincode;
 use blake2b_rs::{Blake2b, Blake2bBuilder};
 use byte_slice_cast::AsByteSlice;
 use ethers::types::{Address, U256};
-use rocksdb::prelude::{Iterate,};
-use rocksdb::{DBVector, OptimisticTransaction, OptimisticTransactionDB,};
+use rocksdb::prelude::Iterate;
+use rocksdb::{DBVector, OptimisticTransaction, OptimisticTransactionDB};
 use rocksdb::{Direction, IteratorMode};
 use serde::{Deserialize, Serialize};
 use smt_rocksdb_store::default_store::DefaultStoreMultiTree;
-use sparse_merkle_tree::{blake2b::Blake2bHasher, traits::Hasher, };
+use sparse_merkle_tree::{blake2b::Blake2bHasher, traits::Hasher};
 use sparse_merkle_tree::{traits::Value, CompiledMerkleProof, SparseMerkleTree, H256};
+use thiserror::Error;
 // local
 use traits::StataTrait;
 use utils::address_convert_to_h256;
@@ -50,20 +49,33 @@ fn new_blake2b() -> Blake2b {
     Blake2bBuilder::new(32).personal(b"SMT").build()
 }
 
+type Result<T> = std::result::Result<T, Error>;
+
+/// The error type for state.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("binary serialization or deserialization errors")]
+    BincodeError(#[from] bincode::Error),
+    #[error("ckb-rocksdb errors")]
+    RocksDBError(#[from] rocksdb::Error),
+    #[error("sparse-merkle-tree errors")]
+    SparseMerkleTreeError(#[from] sparse_merkle_tree::error::Error),
+}
+
 /// The value stored in the sparse Merkle tree.
 #[derive(Debug, Clone, Default)]
 pub struct SmtValue {
     data: Data,
-    serialized_data: Option<Vec<u8>>,
+    serialized_data: Vec<u8>,
 }
 
 impl SmtValue {
-    pub fn new(data: Data) -> Self {
-        let serialized_data = bincode::serialize(&data).unwrap();
-        SmtValue {
+    pub fn new(data: Data) -> Result<Self> {
+        let serialized_data = bincode::serialize(&data)?;
+        Ok(SmtValue {
             data,
-            serialized_data: Some(serialized_data),
-        }
+            serialized_data: serialized_data.clone(),
+        })
     }
 
     pub fn get_data(&self) -> &Data {
@@ -71,10 +83,9 @@ impl SmtValue {
     }
 
     pub fn get_serialized_data(&self) -> &[u8] {
-        self.serialized_data.as_ref().unwrap()
+        self.serialized_data.as_ref()
     }
 }
-
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Data {
@@ -102,7 +113,7 @@ impl From<DBVector> for SmtValue {
         let data = bincode::deserialize(v.as_byte_slice()).unwrap();
         SmtValue {
             data,
-            serialized_data: Some(v.to_vec()),
+            serialized_data: v.to_vec(),
         }
     }
 }
@@ -113,7 +124,6 @@ impl AsRef<[u8]> for SmtValue {
     }
 }
 
-
 /// The state of the bundler.
 /// stores off-chain state, its merkle root is stored on-chain.
 /// Each entry point contract of each chain has a state.
@@ -123,22 +133,23 @@ pub struct State<'a, H: Hasher + Default> {
     hasher: H,
 }
 
-
 impl<'a, H: Hasher + Default> State<'a, H> {
     pub fn new(prefix: &'a [u8], db: OptimisticTransactionDB, hasher: H) -> Self {
         // todo Check if it has been created
         State { prefix, db, hasher }
     }
-
 }
 
-
 impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
-    fn try_update_all(&mut self, future_k_v: Vec<(H256, Data)>) -> anyhow::Result<H256> {
+    fn try_update_all(&mut self, future_k_v: Vec<(H256, Data)>) -> Result<H256> {
         let kvs = future_k_v
             .into_iter()
-            .map(|(k, v)| (k, SmtValue::new(v)))
-            .collect::<Vec<_>>();
+            .map(|(k, v)| match SmtValue::new(v) {
+                Ok(v) => Ok((k, v)),
+                Err(e) => Err(e),
+            })
+            .collect::<Result<Vec<(H256, SmtValue)>>>()?;
+
         let tx = self.db.transaction_default();
         let mut rocksdb_store_smt: SparseMerkleTree<
             Blake2bHasher,
@@ -150,7 +161,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         Ok(*rocksdb_store_smt.root())
     }
 
-    fn try_clear(&mut self) -> anyhow::Result<()> {
+    fn try_clear(&mut self) -> Result<()> {
         let snapshot = self.db.snapshot();
         let prefix = self.prefix;
         let prefix_len = prefix.len();
@@ -176,8 +187,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::new(
             prefix.as_byte_slice(),
             &tx,
-        ))
-        .unwrap();
+        ))?;
 
         rocksdb_store_smt.update_all(kvs)?;
         tx.commit()?;
@@ -185,7 +195,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         Ok(())
     }
 
-    fn try_get_merkle_proof(&self, keys: Vec<H256>) -> anyhow::Result<Vec<u8>> {
+    fn try_get_merkle_proof(&self, keys: Vec<H256>) -> Result<Vec<u8>> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
             Blake2bHasher,
@@ -205,19 +215,21 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         &self,
         old_proof: Vec<u8>,
         future_k_v: Vec<(H256, Data)>,
-    ) -> anyhow::Result<H256> {
+    ) -> Result<H256> {
         let p = CompiledMerkleProof(old_proof);
         let kvs = future_k_v
             .into_iter()
-            .map(|(k, v)| (k, SmtValue::new(v).to_h256()))
-            .collect::<Vec<_>>();
-        let f_root = p
-            .compute_root::<Blake2bHasher>(kvs)
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .map(|(k, v)| match SmtValue::new(v) {
+                Ok(v) => Ok((k, v.to_h256())),
+                Err(e) => Err(e),
+            })
+            .collect::<Result<Vec<(H256, H256)>>>()?;
+
+        let f_root = p.compute_root::<Blake2bHasher>(kvs)?;
         Ok(f_root)
     }
 
-    fn try_get(&self, key: H256) -> anyhow::Result<Option<Data>> {
+    fn try_get(&self, key: H256) -> Result<Option<Data>> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
             Blake2bHasher,
@@ -232,7 +244,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         Ok(Some(data.clone()))
     }
 
-    fn try_get_root(&self) -> anyhow::Result<H256> {
+    fn try_get_root(&self) -> Result<H256> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
             Blake2bHasher,
