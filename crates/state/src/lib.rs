@@ -16,6 +16,8 @@
 //!
 
 #![allow(dead_code)]
+#![allow(unused_imports)]
+
 // todo list
 // 2. hash algorithm can be replaced.
 // 3. bundler calls state.
@@ -176,7 +178,6 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
         Ok(*rocksdb_store_smt.root())
     }
 
-    /// fixme: this function is not used
     fn try_clear(&mut self) -> Result<()> {
         let snapshot = self.db.snapshot();
         let prefix = self.prefix;

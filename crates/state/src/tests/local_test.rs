@@ -1,3 +1,7 @@
+//!
+//! Tests for the state.
+//!
+
 use crate::{
     traits::StataTrait, Blake2bHasher, Data, OptimisticTransactionDB, Result, SmtValue, State, H256,
 };
@@ -12,7 +16,7 @@ fn new_state() -> State<'static, Blake2bHasher> {
 #[test]
 fn main() {
     let mut state = new_state();
-    // fixme no pass
+    //
     println!("value: {:?}", state.try_get(H256::from([0u8; 32])).unwrap());
     state.try_clear().unwrap();
     println!(
@@ -63,6 +67,23 @@ fn main() {
         .unwrap();
     println!("update root2:{:?}", ff_root);
     assert_eq!(f_root, ff_root);
+    assert_eq!(
+        state
+            .try_get_future_root(
+                state.try_get_merkle_proof(vec![H256::zero()]).unwrap(),
+                vec![(
+                    H256::from([0u8; 32]),
+                    Data {
+                        address: Default::default(),
+                        nonce: 2,
+                        deposit: Default::default(),
+                    },
+                )]
+            )
+            .unwrap(),
+        ff_root
+    );
+
     let k = state.try_get(H256::from([0u8; 32])).unwrap().unwrap();
     assert_eq!(k.nonce, 2);
     ///
