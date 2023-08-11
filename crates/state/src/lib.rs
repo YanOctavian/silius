@@ -19,7 +19,6 @@
 #![allow(unused_imports)]
 
 // todo list
-// 2. hash algorithm can be replaced.
 // 3. bundler calls state.
 // 4. Bundler synchronizes data for state.
 
@@ -157,7 +156,7 @@ impl<'a, H: Hasher + Default> State<'a, H> {
     }
 }
 
-impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
+impl<H> StataTrait<H256, Data> for State<'_, H> where H: Hasher + Default {
     fn try_update_all(&mut self, future_k_v: Vec<(H256, Data)>) -> Result<H256> {
         let kvs = future_k_v
             .into_iter()
@@ -169,7 +168,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
 
         let tx = self.db.transaction_default();
         let mut rocksdb_store_smt: SparseMerkleTree<
-            Blake2bHasher,
+            H,
             SmtValue,
             DefaultStoreMultiTree<'_, OptimisticTransaction, ()>,
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::new(self.prefix, &tx))?;
@@ -198,7 +197,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
 
         let tx = self.db.transaction_default();
         let mut rocksdb_store_smt: SparseMerkleTree<
-            Blake2bHasher,
+            H,
             SmtValue,
             DefaultStoreMultiTree<'_, OptimisticTransaction, ()>,
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::new(
@@ -221,7 +220,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
     fn try_get_merkle_proof(&self, keys: Vec<H256>) -> Result<Vec<u8>> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
-            Blake2bHasher,
+            H,
             SmtValue,
             DefaultStoreMultiTree<'_, _, ()>,
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::<_, ()>::new(
@@ -248,14 +247,14 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
             })
             .collect::<Result<Vec<(H256, H256)>>>()?;
 
-        let f_root = p.compute_root::<Blake2bHasher>(kvs)?;
+        let f_root = p.compute_root::<H>(kvs)?;
         Ok(f_root)
     }
 
     fn try_get(&self, key: H256) -> Result<Option<Data>> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
-            Blake2bHasher,
+            H,
             SmtValue,
             DefaultStoreMultiTree<'_, _, ()>,
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::<_, ()>::new(
@@ -270,7 +269,7 @@ impl StataTrait<H256, Data> for State<'_, Blake2bHasher> {
     fn try_get_root(&self) -> Result<H256> {
         let snapshot = self.db.snapshot();
         let rocksdb_store_smt: SparseMerkleTree<
-            Blake2bHasher,
+            H,
             SmtValue,
             DefaultStoreMultiTree<'_, _, ()>,
         > = DefaultStoreMultiSMT::new_with_store(DefaultStoreMultiTree::<_, ()>::new(
